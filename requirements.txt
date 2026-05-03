@@ -1,0 +1,9 @@
+flask
+flask-cors
+pytz
+flask
+flask-cors
+pytz
+sqlalchemy
+psycopg2-binary
+python-dotenv

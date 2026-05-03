@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campus Crowd</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f1117;
+            color: #e8e8e8;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #header {
+            padding: 14px 20px;
+            background: #1a1d27;
+            border-bottom: 1px solid #2e3244;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 1000;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        #map {
+            flex: 1;
+        }
+
+        .status-panel {
+            position: absolute;
+            bottom: 24px;
+            right: 16px;
+            z-index: 1000;
+            background: #1a1d27ee;
+            border: 1px solid #2e3244;
+            border-radius: 12px;
+            padding: 16px;
+            min-width: 200px;
+            max-height: 55vh;
+            overflow-y: auto;
+            backdrop-filter: blur(8px);
+        }
+
+        .spot-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #2e3244;
+            font-size: 13px;
+            gap: 12px;
+        }
+
+        .spot-row:last-child {
+            border-bottom: none;
+        }
+
+        .badge {
+            padding: 2px 10px;
+            border-radius: 99px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .badge.quiet {
+            background: #1a3a2a;
+            color: #4ade80;
+        }
+
+        .badge.moderate {
+            background: #3a3010;
+            color: #facc15;
+        }
+
+        .badge.busy {
+            background: #3a1a10;
+            color: #fb923c;
+        }
+
+        .badge.full {
+            background: #3a1010;
+            color: #f87171;
+        }
+
+        #toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1a1d27;
+            border: 1px solid #2e3244;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 13px;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        #toast.show {
+            opacity: 1;
+        }
+
+        .action-panel {
+            position: absolute;
+            bottom: 24px;
+            left: 16px;
+            z-index: 1000;
+            background: #1a1d27ee;
+            border: 1px solid #2e3244;
+            border-radius: 12px;
+            padding: 16px;
+            width: 220px;
+            backdrop-filter: blur(8px);
+            display: none;
+        }
+
+        .action-panel.visible {
+            display: block;
+        }
+
+        .action-title {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #e8e8e8;
+        }
+
+        .action-btn {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #2e3244;
+            border-radius: 8px;
+            background: #0f1117;
+            color: #e8e8e8;
+            font-size: 13px;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .action-btn:hover {
+            background: #2e3244;
+        }
+
+        .rating-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .rating-btn {
+            width: 32px;
+            height: 32px;
+            border: 1px solid #2e3244;
+            border-radius: 6px;
+            background: #0f1117;
+            color: #e8e8e8;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .rating-btn:hover {
+            background: #facc15;
+            color: #0f1117;
+            border-color: #facc15;
+        }
+
+        .cancel-btn {
+            width: 100%;
+            padding: 6px;
+            margin-top: 8px;
+            border: 1px solid #2e3244;
+            border-radius: 8px;
+            background: transparent;
+            color: #555;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .cancel-btn:hover {
+            color: #e8e8e8;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="header">
+        <div style="width:10px;height:10px;border-radius:50%;background:#4ade80;
+                box-shadow:0 0 8px #4ade80;animation:pulse 2s infinite;"></div>
+        <span style="font-weight:600;font-size:15px;">Campus Crowd</span>
+        <span id="last-updated" style="margin-left:auto;font-size:12px;color:#555;">Loading...</span>
+    </div>
+
+    <div id="map"></div>
+
+    <div class="status-panel">
+        <div style="font-size:11px;color:#555;margin-bottom:10px;
+                text-transform:uppercase;letter-spacing:0.1em;">Live Status</div>
+        <div id="spot-list"></div>
+    </div>
+
+    <div class="action-panel" id="action-panel">
+        <div class="action-title" id="action-title">Med A</div>
+        <button class="action-btn" id="btn-checkin">📍 I am here right now</button>
+        <button class="action-btn" id="btn-rate">⭐ Rate how crowded it is</button>
+        <div id="rating-input" style="display:none;">
+            <div style="font-size:12px; color:#555; margin-bottom:6px;">How crowded? (1=empty, 10=packed)</div>
+            <div class="rating-row" id="rating-buttons"></div>
+        </div>
+        <button class="cancel-btn" id="btn-cancel">Cancel</button>
+    </div>
+
+    <div id="poll-panel" style="
+        position: absolute; top: 70px; right: 16px;
+        z-index: 1000; background: #1a1d27ee;
+        border: 1px solid #2e3244; border-radius: 12px;
+        padding: 16px; width: 200px;
+        backdrop-filter: blur(8px);
+    ">
+        <div style="font-size:11px; color:#555; margin-bottom:10px;
+                    text-transform:uppercase; letter-spacing:0.1em;">Today's Food</div>
+        <div id="poll-content"></div>
+    </div>
+
+    <div id="toast"></div>
+
+    <script>
+        const FLASK_URL = "http://127.0.0.1:5000";
+
+        const SPOTS = {
+    med_a: { name: "Med A", lat: 41.10544, lng: 29.02342 },
+    med_b: { name: "Med B", lat: 41.10278, lng: 29.02700 },
+    med_c: { name: "Med C", lat: 41.10264, lng: 29.02000 },
+    k_e: { name: "Küçük Ev", lat: 41.10444, lng: 29.01967 },
+    it_u_yemekhane: { name: "İTÜ Yemekhane", lat: 41.103756, lng: 29.022190 },
+    cajun_corner: { name: "Cajun Corner İTÜ", lat: 41.105413, lng: 29.023124 },
+    big_slice: { name: "İTÜ Big Slice Pizza", lat: 41.102972, lng: 29.028282 },
+    mekansal: { name: "mekanSAL", lat: 41.105399, lng: 29.019470 },
+    seyri_restaurant: { name: "Seyri Restaurant", lat: 41.107150, lng: 29.022741 },
+    tost_akademisi: { name: "Tost Akademisi", lat: 41.107111, lng: 29.024109 },
+    itu_sofra_borek: { name: "İTÜ Sofra Börek", lat: 41.105412, lng: 29.023145 },
+    fanfan: { name: "Fanfan", lat: 41.104620, lng: 29.020431 },
+    bluff: { name: "Bluff", lat: 41.104559, lng: 29.020480 },
+    selfis_sutis: { name: "Selfiş Sütiş", lat: 41.104706, lng: 29.021356 }
+};
+
+        const COLORS = {
+            quiet: "#4ade80",
+            moderate: "#facc15",
+            busy: "#fb923c",
+            full: "#f87171",
+            unknown: "#555555"
+        };
+
+        const map = L.map("map").setView([41.10544, 29.02342], 17);
+
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: "© OpenStreetMap contributors",
+            maxZoom: 19
+        }).addTo(map);
+
+        function makeIcon(color) {
+            return L.divIcon({
+                className: "",
+                html: `<div style="
+                width:22px;height:22px;border-radius:50%;
+                background:${color};border:3px solid white;
+                box-shadow:0 0 10px ${color}88;
+            "></div>`,
+                iconSize: [22, 22],
+                iconAnchor: [11, 11],
+            });
+        }
+
+        const markers = {};
+        for (const [id, spot] of Object.entries(SPOTS)) {
+            markers[id] = L.marker([spot.lat, spot.lng], {
+                icon: makeIcon(COLORS.unknown)
+            }).addTo(map);
+            markers[id].on("click", () => openActionPanel(id));
+        }
+
+        let selectedSpot = null;
+
+        function openActionPanel(spotId) {
+            selectedSpot = spotId;
+            document.getElementById("action-title").textContent = SPOTS[spotId].name;
+            document.getElementById("rating-input").style.display = "none";
+            document.getElementById("btn-checkin").style.display = "block";
+            document.getElementById("btn-rate").style.display = "block";
+            document.getElementById("action-panel").classList.add("visible");
+        }
+
+        document.getElementById("btn-cancel").addEventListener("click", () => {
+            document.getElementById("action-panel").classList.remove("visible");
+            selectedSpot = null;
+        });
+
+        document.getElementById("btn-checkin").addEventListener("click", async () => {
+            if (!selectedSpot) return;
+            document.getElementById("action-panel").classList.remove("visible");
+
+            try {
+                const res = await fetch(`${FLASK_URL}/checkin`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({ spot: selectedSpot })
+                });
+                const data = await res.json();
+
+                if (res.status === 429) {
+                    const minutes = Math.ceil(data.wait_seconds / 60);
+                    showToast(`Wait ${minutes} more minute${minutes > 1 ? "s" : ""}`);
+                    return;
+                }
+                showToast(`Checked in to ${SPOTS[selectedSpot].name}!`);
+                fetchStatus();
+            } catch (err) {
+                showToast("Can't reach server");
+            }
+        });
+
+        document.getElementById("btn-rate").addEventListener("click", () => {
+            document.getElementById("btn-checkin").style.display = "none";
+            document.getElementById("btn-rate").style.display = "none";
+            document.getElementById("rating-input").style.display = "block";
+
+            const container = document.getElementById("rating-buttons");
+            container.innerHTML = "";
+            for (let i = 1; i <= 10; i++) {
+                const btn = document.createElement("button");
+                btn.className = "rating-btn";
+                btn.textContent = i;
+                btn.addEventListener("click", () => submitRating(i));
+                container.appendChild(btn);
+            }
+        });
+
+        async function submitRating(score) {
+            document.getElementById("action-panel").classList.remove("visible");
+
+            try {
+                const res = await fetch(`${FLASK_URL}/rate`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({ spot: selectedSpot, score: score })
+                });
+                const data = await res.json();
+
+                if (res.status === 429) {
+                    const minutes = Math.ceil(data.wait_seconds / 60);
+                    showToast(`Wait ${minutes} more minute${minutes > 1 ? "s" : ""}`);
+                    return;
+                }
+                showToast(`Rated ${SPOTS[selectedSpot].name} ${score}/10`);
+                fetchStatus();
+            } catch (err) {
+                showToast("Can't reach server");
+            }
+        }
+
+        async function fetchStatus() {
+            try {
+                const res = await fetch(`${FLASK_URL}/status`, {
+                    credentials: "include"
+                });
+                const data = await res.json();
+                updateMap(data);
+                updatePanel(data);
+                document.getElementById("last-updated").textContent =
+                    "Updated " + new Date().toLocaleTimeString();
+            } catch (err) {
+                document.getElementById("last-updated").textContent = "Offline";
+            }
+        }
+
+        function updateMap(data) {
+            for (const [id, info] of Object.entries(data)) {
+                if (markers[id]) {
+                    const color = COLORS[info.label] || COLORS.unknown;
+                    markers[id].setIcon(makeIcon(color));
+                    markers[id].bindPopup(`
+                    <b>${SPOTS[id].name}</b><br>
+                    ${info.count} / ${info.capacity} people<br>
+                    <span style="color:${color}">${info.label.toUpperCase()}</span>
+                `);
+                }
+            }
+        }
+
+        function updatePanel(data) {
+            const list = document.getElementById("spot-list");
+            list.innerHTML = "";
+            for (const [id, info] of Object.entries(data)) {
+                const ratingText = info.avg_rating !== null
+                    ? `⭐ ${info.avg_rating}/10 <span style="color:#555">(${info.rating_count})</span>`
+                    : `<span style="color:#555">no ratings</span>`;
+
+                const row = document.createElement("div");
+                row.className = "spot-row";
+                row.style.flexDirection = "column";
+                row.style.alignItems = "flex-start";
+                row.style.gap = "4px";
+                row.innerHTML = `
+                <div style="display:flex; justify-content:space-between; width:100%">
+                    <span>${SPOTS[id]?.name || id}</span>
+                    <span class="badge ${info.label}">${info.label}</span>
+                </div>
+                <div style="font-size:11px; color:#888">${ratingText}</div>
+            `;
+                list.appendChild(row);
+            }
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById("toast");
+            toast.textContent = message;
+            toast.classList.add("show");
+            setTimeout(() => toast.classList.remove("show"), 3000);
+        }
+
+        async function fetchPoll() {
+            try {
+                const res = await fetch(`${FLASK_URL}/poll/status`, { credentials: "include" });
+                const data = await res.json();
+                updatePollPanel(data);
+            } catch (err) {}
+        }
+
+        function updatePollPanel(data) {
+    const panel = document.getElementById("poll-content");
+    panel.innerHTML = "";
+
+    for (const meal of ["lunch", "dinner"]) {
+        const stats    = data[`${meal}_stats`];
+        const outcome  = data[meal];
+        const isOpen   = data[`${meal}_open`];
+        const alreadyVoted = data[`voted_${meal}`];
+
+        // outcome text
+        const outcomeText = outcome === null
+            ? `<span style="color:#555">no votes yet</span>`
+            : outcome === false
+                ? `<span style="color:#fb923c">⚠ bad today</span>`
+                : `<span style="color:#4ade80">✓ good today</span>`;
+
+        // percentage bar — only shown if there are votes
+        let statsHtml = "";
+        if (stats) {
+            statsHtml = `
+                <div style="margin:6px 0 4px;">
+                    <div style="display:flex;justify-content:space-between;
+                                font-size:10px;color:#888;margin-bottom:3px;">
+                        <span style="color:#4ade80">${stats.good_pct}% good</span>
+                        <span style="color:#f87171">${stats.bad_pct}% bad</span>
+                    </div>
+                    <div style="height:4px;border-radius:99px;background:#2e3244;overflow:hidden;">
+                        <div style="height:100%;width:${stats.good_pct}%;
+                                    background:#4ade80;border-radius:99px;
+                                    transition:width 0.4s;"></div>
+                    </div>
+                </div>`;
+        }
+
+        // vote buttons
+        let voteArea = "";
+        if (!isOpen) {
+            voteArea = `<div style="font-size:11px;color:#555">voting closed</div>`;
+        } else if (alreadyVoted) {
+            voteArea = `<div style="font-size:11px;color:#555">voted — wait 30s to vote again</div>`;
+        } else {
+            voteArea = `
+                <div style="display:flex;gap:6px;margin-top:6px;">
+                    <button onclick="submitVote('${meal}','good')" style="
+                        flex:1;padding:4px;border:1px solid #2e3244;
+                        border-radius:6px;background:#0f1117;color:#4ade80;
+                        font-size:11px;cursor:pointer;">Good</button>
+                    <button onclick="submitVote('${meal}','bad')" style="
+                        flex:1;padding:4px;border:1px solid #2e3244;
+                        border-radius:6px;background:#0f1117;color:#f87171;
+                        font-size:11px;cursor:pointer;">Bad</button>
+                </div>`;
+        }
+
+        panel.innerHTML += `
+            <div style="margin-bottom:12px;">
+                <div style="font-size:12px;font-weight:600;margin-bottom:4px;
+                            text-transform:capitalize">${meal}</div>
+                <div style="font-size:11px;">${outcomeText}</div>
+                ${statsHtml}
+                ${voteArea}
+            </div>`;
+    }
+
+    if (data.food_effect_active) {
+        panel.innerHTML += `
+            <div style="font-size:11px;color:#fb923c;margin-top:4px;
+                        padding-top:8px;border-top:1px solid #2e3244;">
+                ⚠ baselines adjusted for food
+            </div>`;
+    }
+}
+
+        async function submitVote(meal, vote) {
+    try {
+        const res = await fetch(`${FLASK_URL}/poll/vote`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ meal, vote })
+        });
+        if (res.ok) {
+            showToast(`Thanks for voting!`);
+            fetchPoll();
+        } else if (res.status === 429) {
+            showToast("Wait 30 seconds before voting again");
+            fetchPoll();
+        } else {
+            const data = await res.json();
+            showToast(data.error || "Failed to vote");
+        }
+    } catch (err) {
+        showToast("Can't reach server");
+    }
+}
+
+        fetchStatus();
+        setInterval(fetchStatus, 30000);
+        fetchPoll();
+        setInterval(fetchPoll, 60000);
+    </script>
+</body>
+
+</html>
+
+<!--to run the code paste this
+python -m http.server 8000
+then at the browser go here
+http://localhost:8000/index.html
+
+-->>
