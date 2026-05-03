@@ -13,9 +13,8 @@ from database_cr import (
 app = Flask(__name__)
 CORS(app, supports_credentials=True, origins=[
     "http://localhost:8000",
-    "http://127.0.0.1:8000"
-    # When you deploy, add your Netlify URL here:
-    # "https://your-app.netlify.app"
+    "http://127.0.0.1:8000",
+    "https://69f7a6126e74e0f993bda711--celadon-pastelito-a8822f.netlify.app"
 ])
 init_db()
 
