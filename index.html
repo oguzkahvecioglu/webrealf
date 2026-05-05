@@ -212,6 +212,142 @@
         .cancel-btn:hover {
             color: #e8e8e8;
         }
+
+        /* Poll panel base (desktop) */
+        .poll-panel {
+            position: absolute;
+            top: 70px;
+            right: 16px;
+            z-index: 1000;
+            background: #1a1d27ee;
+            border: 1px solid #2e3244;
+            border-radius: 12px;
+            padding: 16px;
+            width: 200px;
+            backdrop-filter: blur(8px);
+        }
+
+        /* Toggle strips — hidden on desktop */
+        .panel-toggle {
+            display: none;
+        }
+
+        /* =========== MOBILE STYLES =========== */
+        @media (max-width: 768px) {
+
+            .panel-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 12px 16px;
+                cursor: pointer;
+                font-size: 11px;
+                font-weight: 600;
+                color: #999;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                -webkit-tap-highlight-color: transparent;
+                user-select: none;
+            }
+
+            .toggle-arrow {
+                font-size: 14px;
+                color: #4ade80;
+            }
+
+            .desktop-label {
+                display: none;
+            }
+
+            /* ---- Poll panel (mobile) ---- */
+            .poll-panel {
+                position: fixed;
+                top: 47px;
+                left: 0;
+                right: 0;
+                width: 100%;
+                border-radius: 0 0 12px 12px;
+                padding: 0;
+                z-index: 1050;
+            }
+
+            #poll-body {
+                overflow: hidden;
+                transition: max-height 0.3s ease, padding 0.3s ease;
+            }
+
+            .poll-panel.collapsed #poll-body {
+                max-height: 0;
+                padding: 0 16px;
+            }
+
+            .poll-panel:not(.collapsed) #poll-body {
+                max-height: 60vh;
+                padding: 0 16px 16px;
+                overflow-y: auto;
+            }
+
+            /* ---- Status panel (mobile) ---- */
+            .status-panel {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                top: auto;
+                width: 100%;
+                min-width: unset;
+                border-radius: 12px 12px 0 0;
+                padding: 0;
+                max-height: 80vh;
+                overflow: visible;
+                z-index: 1050;
+            }
+
+            #spot-list-wrapper {
+                padding: 0 16px 12px;
+                overflow: hidden;
+                transition: max-height 0.3s ease;
+                position: relative;
+            }
+
+            .status-panel.collapsed #spot-list-wrapper {
+                max-height: 41.25vh;
+            }
+
+            .status-panel:not(.collapsed) #spot-list-wrapper {
+                max-height: 55vh;
+                overflow-y: auto;
+            }
+
+            /* Fade hint at bottom when collapsed */
+            .status-panel.collapsed #spot-list-wrapper::after {
+                content: "";
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 30px;
+                background: linear-gradient(transparent, #1a1d27ee);
+                pointer-events: none;
+            }
+
+            /* ---- Action panel (mobile) ---- */
+            .action-panel {
+                position: fixed;
+                top: 47px;
+                left: 0;
+                right: 0;
+                bottom: auto;
+                width: 100%;
+                border-radius: 0 0 12px 12px;
+                z-index: 1100;
+            }
+
+            /* Toast repositioning */
+            #toast {
+                bottom: 260px;
+            }
+        }
     </style>
 </head>
 
@@ -226,10 +362,17 @@
 
     <div id="map"></div>
 
-    <div class="status-panel">
-        <div style="font-size:11px;color:#555;margin-bottom:10px;
-                text-transform:uppercase;letter-spacing:0.1em;">Live Status</div>
-        <div id="spot-list"></div>
+    <!-- Status Panel (spot list) -->
+    <div class="status-panel collapsed" id="status-panel">
+        <div class="panel-toggle" onclick="toggleSpotList()">
+            <span>Live Status</span>
+            <span class="toggle-arrow" id="spots-arrow">▲</span>
+        </div>
+        <div class="desktop-label" style="font-size:11px;color:#555;margin-bottom:10px;
+                text-transform:uppercase;letter-spacing:0.1em;padding:0 16px;">Live Status</div>
+        <div id="spot-list-wrapper">
+            <div id="spot-list"></div>
+        </div>
     </div>
 
     <div class="action-panel" id="action-panel">
@@ -243,16 +386,17 @@
         <button class="cancel-btn" id="btn-cancel">Cancel</button>
     </div>
 
-    <div id="poll-panel" style="
-        position: absolute; top: 70px; right: 16px;
-        z-index: 1000; background: #1a1d27ee;
-        border: 1px solid #2e3244; border-radius: 12px;
-        padding: 16px; width: 200px;
-        backdrop-filter: blur(8px);
-    ">
-        <div style="font-size:11px; color:#555; margin-bottom:10px;
+    <!-- Poll Panel -->
+    <div id="poll-panel" class="poll-panel collapsed">
+        <div class="panel-toggle" onclick="togglePoll()">
+            <span>Today's Food</span>
+            <span class="toggle-arrow" id="poll-arrow">▼</span>
+        </div>
+        <div class="desktop-label" style="font-size:11px; color:#555; margin-bottom:10px;
                     text-transform:uppercase; letter-spacing:0.1em;">Today's Food</div>
-        <div id="poll-content"></div>
+        <div id="poll-body">
+            <div id="poll-content"></div>
+        </div>
     </div>
 
     <div id="toast"></div>
@@ -314,7 +458,49 @@
         }
 
         let selectedSpot = null;
+        let pollExpanded = false;
+        let spotsExpanded = false;
 
+        /* ---- Mobile helpers ---- */
+        function isMobile() {
+            return window.matchMedia("(max-width: 768px)").matches;
+        }
+
+        function togglePoll() {
+            const panel = document.getElementById("poll-panel");
+            const arrow = document.getElementById("poll-arrow");
+            pollExpanded = !pollExpanded;
+            if (pollExpanded) {
+                panel.classList.remove("collapsed");
+                arrow.textContent = "▲";
+            } else {
+                panel.classList.add("collapsed");
+                arrow.textContent = "▼";
+            }
+        }
+
+        function collapsePoll() {
+            const panel = document.getElementById("poll-panel");
+            const arrow = document.getElementById("poll-arrow");
+            pollExpanded = false;
+            panel.classList.add("collapsed");
+            arrow.textContent = "▼";
+        }
+
+        function toggleSpotList() {
+            const panel = document.getElementById("status-panel");
+            const arrow = document.getElementById("spots-arrow");
+            spotsExpanded = !spotsExpanded;
+            if (spotsExpanded) {
+                panel.classList.remove("collapsed");
+                arrow.textContent = "▼";
+            } else {
+                panel.classList.add("collapsed");
+                arrow.textContent = "▲";
+            }
+        }
+
+        /* ---- Action panel ---- */
         function openActionPanel(spotId) {
             selectedSpot = spotId;
             document.getElementById("action-title").textContent = SPOTS[spotId].name;
@@ -322,6 +508,11 @@
             document.getElementById("btn-checkin").style.display = "block";
             document.getElementById("btn-rate").style.display = "block";
             document.getElementById("action-panel").classList.add("visible");
+
+            // On mobile, collapse poll to make room for action panel
+            if (isMobile() && pollExpanded) {
+                collapsePoll();
+            }
         }
 
         document.getElementById("btn-cancel").addEventListener("click", () => {
