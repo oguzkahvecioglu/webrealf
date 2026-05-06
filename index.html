@@ -378,7 +378,7 @@
     <div class="action-panel" id="action-panel">
         <div class="action-title" id="action-title">Med A</div>
         <button class="action-btn" id="btn-checkin">📍 I am here right now</button>
-        <button class="action-btn" id="btn-rate">⭐ Rate how crowded it is</button>
+        <button class="action-btn" id="btn-rate">👥 Rate how crowded it is</button>
         <div id="rating-input" style="display:none;">
             <div style="font-size:12px; color:#555; margin-bottom:6px;">How crowded? (1=empty, 10=packed)</div>
             <div class="rating-row" id="rating-buttons"></div>
@@ -578,7 +578,7 @@
                     showToast(`Wait ${minutes} more minute${minutes > 1 ? "s" : ""}`);
                     return;
                 }
-                showToast(`Rated ${SPOTS[selectedSpot].name} ${score}/10`);
+                showToast(`Rated ${SPOTS[selectedSpot].name} 👥 ${score}/10`);
                 fetchStatus();
             } catch (err) {
                 showToast("Can't reach server");
@@ -619,7 +619,7 @@
             list.innerHTML = "";
             for (const [id, info] of Object.entries(data)) {
                 const ratingText = info.avg_rating !== null
-                    ? `⭐ ${info.avg_rating}/10 <span style="color:#555">(${info.rating_count})</span>`
+                    ? `👥 ${info.avg_rating}/10 <span style="color:#555">(${info.rating_count})</span>`
                     : `<span style="color:#555">no ratings</span>`;
 
                 const row = document.createElement("div");
