@@ -7,7 +7,8 @@ from database_cr import (
     init_db, get_poll, save_poll,
     add_checkin, add_rating,
     get_active_checkins, get_all_active_checkins, get_active_ratings,
-    get_recent_poll_vote, add_poll_vote
+    add_poll_vote, get_recent_poll_vote,
+    add_action_log, get_recent_action
 )
 
 app = Flask(__name__)
@@ -108,6 +109,41 @@ SPOTS = {
         }
     },
     "selfis_sutis": {
+        "capacity": 30, "stay_minutes": 20, "rating_minutes": 45,
+        "schedule": {
+            (8, 9): 15, (9, 11): 25, (11, 13): 50,
+            (13, 15): 35, (15, 17): 20, (17, 20): 30, "default": 15
+        }
+    },
+    "kovan": {
+        "capacity": 30, "stay_minutes": 20, "rating_minutes": 45,
+        "schedule": {
+            (8, 9): 15, (9, 11): 25, (11, 13): 50,
+            (13, 15): 35, (15, 17): 20, (17, 20): 30, "default": 15
+        }
+    },
+    "yemekhane_1": {
+        "capacity": 30, "stay_minutes": 20, "rating_minutes": 45,
+        "schedule": {
+            (8, 9): 15, (9, 11): 25, (11, 13): 50,
+            (13, 15): 35, (15, 17): 20, (17, 20): 30, "default": 15
+        }
+    },
+    "yemekhane_2": {
+        "capacity": 30, "stay_minutes": 20, "rating_minutes": 45,
+        "schedule": {
+            (8, 9): 15, (9, 11): 25, (11, 13): 50,
+            (13, 15): 35, (15, 17): 20, (17, 20): 30, "default": 15
+        }
+    },
+    "yemekhane_3": {
+        "capacity": 30, "stay_minutes": 20, "rating_minutes": 45,
+        "schedule": {
+            (8, 9): 15, (9, 11): 25, (11, 13): 50,
+            (13, 15): 35, (15, 17): 20, (17, 20): 30, "default": 15
+        }
+    },
+    "mustafa_inan_kutuphane": {
         "capacity": 30, "stay_minutes": 20, "rating_minutes": 45,
         "schedule": {
             (8, 9): 15, (9, 11): 25, (11, 13): 50,
@@ -225,48 +261,22 @@ def get_label(crowding):
 # Cooldown helpers — shared between /checkin and /rate
 # ---------------------------------------------------------------------------
 
-def check_cooldown():
-    """Returns (blocked, seconds_left). blocked=True means reject the request."""
-    last_action = request.cookies.get("last_action")
-    if not last_action:
-        return False, 0
-    try:
-        last_time = datetime.fromisoformat(last_action)
-        diff = timedelta(minutes=COOLDOWN_MINUTES) - (now_naive() - last_time)
-        if diff.total_seconds() > 0:
-            return True, int(diff.total_seconds())
-    except ValueError:
-        pass  # corrupted cookie — let them through
-    return False, 0
-
-def make_cooldown_response(data):
-    """Builds a response and stamps the cooldown cookie."""
-    response = make_response(jsonify(data))
-    response.set_cookie(
-        "last_action",
-        now_naive().isoformat(),
-        max_age=COOLDOWN_MINUTES * 60,
-        samesite="None",
-        secure=False
-    )
-    return response
-
-# ---------------------------------------------------------------------------
-# Routes
-# ---------------------------------------------------------------------------
-
 @app.route("/checkin", methods=["POST"])
 def checkin():
     spot = request.json.get("spot")
     if spot not in SPOTS:
         return jsonify({"error": "unknown spot"}), 400
 
-    blocked, seconds_left = check_cooldown()
-    if blocked:
-        return jsonify({"error": "cooldown", "wait_seconds": seconds_left}), 429
+    actor_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+    if actor_ip:
+        actor_ip = actor_ip.split(",")[0].strip()
+
+    if get_recent_action("checkin", actor_ip, minutes=2):
+        return jsonify({"error": "cooldown", "wait_seconds": 120}), 429
 
     add_checkin(spot)
-    return make_cooldown_response({"status": "ok"})
+    add_action_log("checkin", actor_ip)
+    return jsonify({"status": "ok"})
 
 
 @app.route("/rate", methods=["POST"])
@@ -279,12 +289,16 @@ def rate():
     if not isinstance(score, (int, float)) or not (1 <= score <= 10):
         return jsonify({"error": "score must be between 1 and 10"}), 400
 
-    blocked, seconds_left = check_cooldown()
-    if blocked:
-        return jsonify({"error": "cooldown", "wait_seconds": seconds_left}), 429
+    actor_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+    if actor_ip:
+        actor_ip = actor_ip.split(",")[0].strip()
+
+    if get_recent_action("rate", actor_ip):
+        return jsonify({"error": "cooldown", "wait_seconds": 300}), 429
 
     add_rating(spot, score)
-    return make_cooldown_response({"status": "ok"})
+    add_action_log("rate", actor_ip)
+    return jsonify({"status": "ok"})
 
 
 @app.route("/poll/vote", methods=["POST"])

@@ -409,7 +409,6 @@
     med_b: { name: "Med B", lat: 41.10278, lng: 29.02700 },
     med_c: { name: "Med C", lat: 41.10264, lng: 29.02000 },
     k_e: { name: "Küçük Ev", lat: 41.10444, lng: 29.01967 },
-    it_u_yemekhane: { name: "İTÜ Yemekhane", lat: 41.103756, lng: 29.022190 },
     cajun_corner: { name: "Cajun Corner İTÜ", lat: 41.105413, lng: 29.023124 },
     big_slice: { name: "İTÜ Big Slice Pizza", lat: 41.102972, lng: 29.028282 },
     mekansal: { name: "mekanSAL", lat: 41.105399, lng: 29.019470 },
@@ -418,7 +417,12 @@
     itu_sofra_borek: { name: "İTÜ Sofra Börek", lat: 41.105412, lng: 29.023145 },
     fanfan: { name: "Fanfan", lat: 41.104620, lng: 29.020431 },
     bluff: { name: "Bluff", lat: 41.104559, lng: 29.020480 },
-    selfis_sutis: { name: "Selfiş Sütiş", lat: 41.104706, lng: 29.021356 }
+    selfis_sutis: { name: "Selfiş Sütiş", lat: 41.104706, lng: 29.021356 },
+    kovan: { name: "Kovan", lat: 41.104028, lng: 29.021889 },
+    yemekhane_1: { name: "İTÜ Yemekhane 1", lat: 41.104306, lng: 29.022028 },
+    yemekhane_2: { name: "İTÜ Yemekhane 2", lat: 41.104028, lng: 29.022194 },
+    yemekhane_3: { name: "İTÜ Yemekhane 3", lat: 41.103786, lng: 29.022263 },
+    mustafa_inan_kutuphane: { name: "Mustafa İnan Kütüphanesi", lat: 41.103667, lng: 29.021000 }
 };
 
         const COLORS = {
@@ -429,7 +433,17 @@
             unknown: "#555555"
         };
 
-        const map = L.map("map").setView([41.10544, 29.02342], 17);
+        const bounds = L.latLngBounds(
+            [41.095, 29.010],  // southwest corner
+            [41.115, 29.035]   // northeast corner
+        );
+
+        const map = L.map("map", {
+            maxBounds: bounds,
+            maxBoundsViscosity: 1.0,
+            minZoom: 15,
+            maxZoom: 19
+        }).setView([41.10544, 29.02342], 17);
 
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
             attribution: "© OpenStreetMap contributors",
@@ -619,7 +633,7 @@
             list.innerHTML = "";
             for (const [id, info] of Object.entries(data)) {
                 const ratingText = info.avg_rating !== null
-                    ? `👥 ${info.avg_rating}/10 <span style="color:#555">(${info.rating_count})</span>`
+                    ? `⭐ ${info.avg_rating}/10 <span style="color:#555">(${info.rating_count})</span>`
                     : `<span style="color:#555">no ratings</span>`;
 
                 const row = document.createElement("div");
@@ -627,6 +641,7 @@
                 row.style.flexDirection = "column";
                 row.style.alignItems = "flex-start";
                 row.style.gap = "4px";
+                row.style.cursor = "pointer";
                 row.innerHTML = `
                 <div style="display:flex; justify-content:space-between; width:100%">
                     <span>${SPOTS[id]?.name || id}</span>
@@ -634,6 +649,14 @@
                 </div>
                 <div style="font-size:11px; color:#888">${ratingText}</div>
             `;
+
+                row.addEventListener("click", () => {
+                    const spot = SPOTS[id];
+                    if (!spot) return;
+                    map.flyTo([spot.lat, spot.lng], 19, { duration: 1.2 });
+                    setTimeout(() => openActionPanel(id), 1300);
+                });
+
                 list.appendChild(row);
             }
         }

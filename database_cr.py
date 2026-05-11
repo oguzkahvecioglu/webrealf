@@ -53,6 +53,13 @@ class PollVote(Base):
     voter_ip  = Column(String,   nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+class ActionLog(Base):
+    __tablename__ = "action_log"
+    id        = Column(Integer,  primary_key=True, autoincrement=True)
+    action    = Column(String,   nullable=False)  # "checkin" or "rate"
+    actor_ip  = Column(String,   nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+
 def init_db():
     """Create all tables if they don't exist. Safe to call multiple times."""
     Base.metadata.create_all(engine)
@@ -124,4 +131,23 @@ def add_poll_vote(meal, voter_ip):
     with Session(engine) as session:
         session.add(PollVote(meal=meal, voter_ip=voter_ip))
         session.commit()
-    
+
+def add_action_log(action, actor_ip):
+    with Session(engine) as session:
+        session.add(ActionLog(
+            action=action,
+            actor_ip=actor_ip,
+            timestamp=datetime.utcnow()
+        ))
+        session.commit()
+
+def get_recent_action(action, actor_ip, minutes=5):
+    """Returns True if this IP performed this action in the last N minutes."""
+    cutoff = datetime.utcnow() - timedelta(minutes=minutes)
+    with Session(engine) as session:
+        result = session.query(ActionLog).filter(
+            ActionLog.action == action,
+            ActionLog.actor_ip == actor_ip,
+            ActionLog.timestamp > cutoff
+        ).first()
+        return result is not None
