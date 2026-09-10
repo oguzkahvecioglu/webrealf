@@ -377,8 +377,8 @@
 
     <div class="action-panel" id="action-panel">
         <div class="action-title" id="action-title">Med A</div>
-        <button class="action-btn" id="btn-checkin">📍 I am here right now</button>
-        <button class="action-btn" id="btn-rate">👥 Rate how crowded it is</button>
+        <button class="action-btn" id="btn-checkin">I am here right now</button>
+        <button class="action-btn" id="btn-rate">Rate how crowded it is</button>
         <div id="rating-input" style="display:none;">
             <div style="font-size:12px; color:#555; margin-bottom:6px;">How crowded? (1=empty, 10=packed)</div>
             <div class="rating-row" id="rating-buttons"></div>
@@ -434,19 +434,19 @@
         };
 
         const bounds = L.latLngBounds(
-            [41.095, 29.010],  // southwest corner
-            [41.115, 29.035]   // northeast corner
+            [41.098, 29.013],
+            [41.112, 29.032]
         );
 
         const map = L.map("map", {
             maxBounds: bounds,
             maxBoundsViscosity: 1.0,
-            minZoom: 15,
+            minZoom: 16,
             maxZoom: 19
         }).setView([41.10544, 29.02342], 17);
 
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            attribution: "© OpenStreetMap contributors",
+        L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+            attribution: "© OpenStreetMap contributors © CARTO",
             maxZoom: 19
         }).addTo(map);
 
@@ -592,7 +592,7 @@
                     showToast(`Wait ${minutes} more minute${minutes > 1 ? "s" : ""}`);
                     return;
                 }
-                showToast(`Rated ${SPOTS[selectedSpot].name} 👥 ${score}/10`);
+                showToast(`Rated ${SPOTS[selectedSpot].name} ${score}/10`);
                 fetchStatus();
             } catch (err) {
                 showToast("Can't reach server");
@@ -633,7 +633,7 @@
             list.innerHTML = "";
             for (const [id, info] of Object.entries(data)) {
                 const ratingText = info.avg_rating !== null
-                    ? `⭐ ${info.avg_rating}/10 <span style="color:#555">(${info.rating_count})</span>`
+                    ? `${info.avg_rating}/10 <span style="color:#555">(${info.rating_count})</span>`
                     : `<span style="color:#555">no ratings</span>`;
 
                 const row = document.createElement("div");
@@ -690,8 +690,8 @@
         const outcomeText = outcome === null
             ? `<span style="color:#555">no votes yet</span>`
             : outcome === false
-                ? `<span style="color:#fb923c">⚠ bad today</span>`
-                : `<span style="color:#4ade80">✓ good today</span>`;
+                ? `<span style="color:#fb923c">bad today</span>`
+                : `<span style="color:#4ade80">good today</span>`;
 
         // percentage bar — only shown if there are votes
         let statsHtml = "";
@@ -745,7 +745,7 @@
         panel.innerHTML += `
             <div style="font-size:11px;color:#fb923c;margin-top:4px;
                         padding-top:8px;border-top:1px solid #2e3244;">
-                ⚠ baselines adjusted for food
+                baselines adjusted for food
             </div>`;
     }
 }
