@@ -49,6 +49,10 @@
             flex: 1;
         }
 
+        .leaflet-tile-pane {
+            filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+        }
+
         .status-panel {
             position: absolute;
             bottom: 24px;
@@ -445,8 +449,8 @@
             maxZoom: 19
         }).setView([41.10544, 29.02342], 17);
 
-        L.tileLayer("https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png", {
-            attribution: '© Stadia Maps © OpenStreetMap contributors',
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: "© OpenStreetMap contributors",
             maxZoom: 19
         }).addTo(map);
 
