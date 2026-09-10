@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Campus Crowd</title>
+    <title>İTÜ İnteraktif Kalabalık Haritası</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -83,7 +83,8 @@
         }
 
         .badge {
-            padding: 2px 10px;
+            display: inline-block;
+            padding: 2px 8px;
             border-radius: 99px;
             font-size: 11px;
             font-weight: 600;
@@ -91,22 +92,22 @@
             letter-spacing: 0.05em;
         }
 
-        .badge.quiet {
+        .badge.quiet, .badge.sakin {
             background: #1a3a2a;
             color: #4ade80;
         }
 
-        .badge.moderate {
+        .badge.moderate, .badge.orta {
             background: #3a3010;
             color: #facc15;
         }
 
-        .badge.busy {
+        .badge.busy, .badge.kalabalık {
             background: #3a1a10;
             color: #fb923c;
         }
 
-        .badge.full {
+        .badge.full, .badge.almost-full, .badge.almost_full, .badge.neredeyse-dolu, .badge.neredeyse_dolu {
             background: #3a1010;
             color: #f87171;
         }
@@ -360,8 +361,8 @@
     <div id="header">
         <div style="width:10px;height:10px;border-radius:50%;background:#4ade80;
                 box-shadow:0 0 8px #4ade80;animation:pulse 2s infinite;"></div>
-        <span style="font-weight:600;font-size:15px;">Campus Crowd</span>
-        <span id="last-updated" style="margin-left:auto;font-size:12px;color:#555;">Loading...</span>
+        <span style="font-weight:600;font-size:15px;">İTÜ İnteraktif Kalabalık Haritası</span>
+        <span id="last-updated" style="margin-left:auto;font-size:12px;color:#555;">Yükleniyor...</span>
     </div>
 
     <div id="map"></div>
@@ -369,11 +370,11 @@
     <!-- Status Panel (spot list) -->
     <div class="status-panel collapsed" id="status-panel">
         <div class="panel-toggle" onclick="toggleSpotList()">
-            <span>Live Status</span>
+            <span>Şu Anda</span>
             <span class="toggle-arrow" id="spots-arrow">▲</span>
         </div>
         <div class="desktop-label" style="font-size:11px;color:#555;margin-bottom:10px;
-                text-transform:uppercase;letter-spacing:0.1em;padding:0 16px;">Live Status</div>
+                text-transform:uppercase;letter-spacing:0.1em;padding:0 16px;">Şu Anda</div>
         <div id="spot-list-wrapper">
             <div id="spot-list"></div>
         </div>
@@ -381,23 +382,23 @@
 
     <div class="action-panel" id="action-panel">
         <div class="action-title" id="action-title">Med A</div>
-        <button class="action-btn" id="btn-checkin">I am here right now</button>
-        <button class="action-btn" id="btn-rate">Rate how crowded it is</button>
+        <button class="action-btn" id="btn-checkin">Şu an buradayım</button>
+        <button class="action-btn" id="btn-rate">Ne kadar kalabalık?</button>
         <div id="rating-input" style="display:none;">
-            <div style="font-size:12px; color:#555; margin-bottom:6px;">How crowded? (1=empty, 10=packed)</div>
+            <div style="font-size:12px; color:#555; margin-bottom:6px;">Ne kadar kalabalık? (1=boş, 10=dolu)</div>
             <div class="rating-row" id="rating-buttons"></div>
         </div>
-        <button class="cancel-btn" id="btn-cancel">Cancel</button>
+        <button class="cancel-btn" id="btn-cancel">İptal</button>
     </div>
 
     <!-- Poll Panel -->
     <div id="poll-panel" class="poll-panel collapsed">
         <div class="panel-toggle" onclick="togglePoll()">
-            <span>Today's Food</span>
+            <span>Bugünün Yemeği</span>
             <span class="toggle-arrow" id="poll-arrow">▼</span>
         </div>
         <div class="desktop-label" style="font-size:11px; color:#555; margin-bottom:10px;
-                    text-transform:uppercase; letter-spacing:0.1em;">Today's Food</div>
+                    text-transform:uppercase; letter-spacing:0.1em;">Bugünün Yemeği</div>
         <div id="poll-body">
             <div id="poll-content"></div>
         </div>
@@ -434,7 +435,24 @@
             moderate: "#facc15",
             busy: "#fb923c",
             full: "#f87171",
+            "almost full": "#f87171",
+            sakin: "#4ade80",
+            orta: "#facc15",
+            kalabalık: "#fb923c",
+            "neredeyse dolu": "#f87171",
             unknown: "#555555"
+        };
+
+        const LABEL_TEXT = {
+            quiet: "sakin",
+            moderate: "orta",
+            busy: "kalabalık",
+            "almost full": "neredeyse dolu",
+            full: "neredeyse dolu",
+            sakin: "sakin",
+            orta: "orta",
+            kalabalık: "kalabalık",
+            "neredeyse dolu": "neredeyse dolu"
         };
 
         const bounds = L.latLngBounds(
@@ -553,13 +571,13 @@
 
                 if (res.status === 429) {
                     const minutes = Math.ceil(data.wait_seconds / 60);
-                    showToast(`Wait ${minutes} more minute${minutes > 1 ? "s" : ""}`);
+                    showToast(`${minutes} dakika bekleyin`);
                     return;
                 }
-                showToast(`Checked in to ${SPOTS[selectedSpot].name}!`);
+                showToast(`Şu an buradasınız: ${SPOTS[selectedSpot].name}`);
                 fetchStatus();
             } catch (err) {
-                showToast("Can't reach server");
+                showToast("Sunucuya ulaşılamıyor");
             }
         });
 
@@ -593,13 +611,13 @@
 
                 if (res.status === 429) {
                     const minutes = Math.ceil(data.wait_seconds / 60);
-                    showToast(`Wait ${minutes} more minute${minutes > 1 ? "s" : ""}`);
+                    showToast(`${minutes} dakika bekleyin`);
                     return;
                 }
-                showToast(`Rated ${SPOTS[selectedSpot].name} ${score}/10`);
+                showToast(`${SPOTS[selectedSpot].name} — ${score}/10`);
                 fetchStatus();
             } catch (err) {
-                showToast("Can't reach server");
+                showToast("Sunucuya ulaşılamıyor");
             }
         }
 
@@ -612,9 +630,9 @@
                 updateMap(data);
                 updatePanel(data);
                 document.getElementById("last-updated").textContent =
-                    "Updated " + new Date().toLocaleTimeString();
+                    "Güncellendi " + new Date().toLocaleTimeString();
             } catch (err) {
-                document.getElementById("last-updated").textContent = "Offline";
+                document.getElementById("last-updated").textContent = "Bağlantı Yok";
             }
         }
 
@@ -622,11 +640,12 @@
             for (const [id, info] of Object.entries(data)) {
                 if (markers[id]) {
                     const color = COLORS[info.label] || COLORS.unknown;
+                    const labelDisplay = (LABEL_TEXT[info.label] || info.label).toUpperCase();
                     markers[id].setIcon(makeIcon(color));
                     markers[id].bindPopup(`
                     <b>${SPOTS[id].name}</b><br>
-                    ${info.count} / ${info.capacity} people<br>
-                    <span style="color:${color}">${info.label.toUpperCase()}</span>
+                    ${info.count} / ${info.capacity} kişi<br>
+                    <span style="color:${color}">${labelDisplay}</span>
                 `);
                 }
             }
@@ -638,7 +657,9 @@
             for (const [id, info] of Object.entries(data)) {
                 const ratingText = info.avg_rating !== null
                     ? `${info.avg_rating}/10 <span style="color:#555">(${info.rating_count})</span>`
-                    : `<span style="color:#555">no ratings</span>`;
+                    : `<span style="color:#555">Değerlendirme yok</span>`;
+
+                const labelDisplay = LABEL_TEXT[info.label] || info.label;
 
                 const row = document.createElement("div");
                 row.className = "spot-row";
@@ -649,7 +670,7 @@
                 row.innerHTML = `
                 <div style="display:flex; justify-content:space-between; width:100%">
                     <span>${SPOTS[id]?.name || id}</span>
-                    <span class="badge ${info.label}">${info.label}</span>
+                    <span class="badge ${info.label}">${labelDisplay}</span>
                 </div>
                 <div style="font-size:11px; color:#888">${ratingText}</div>
             `;
@@ -681,101 +702,98 @@
         }
 
         function updatePollPanel(data) {
-    const panel = document.getElementById("poll-content");
-    panel.innerHTML = "";
+            const panel = document.getElementById("poll-content");
+            panel.innerHTML = "";
 
-    for (const meal of ["lunch", "dinner"]) {
-        const stats    = data[`${meal}_stats`];
-        const outcome  = data[meal];
-        const isOpen   = data[`${meal}_open`];
-        const alreadyVoted = data[`voted_${meal}`];
+            for (const meal of ["lunch", "dinner"]) {
+                const stats    = data[`${meal}_stats`];
+                const outcome  = data[meal];
+                const isOpen   = data[`${meal}_open`];
+                const alreadyVoted = data[`voted_${meal}`];
 
-        // outcome text
-        const outcomeText = outcome === null
-            ? `<span style="color:#555">no votes yet</span>`
-            : outcome === false
-                ? `<span style="color:#fb923c">bad today</span>`
-                : `<span style="color:#4ade80">good today</span>`;
+                // outcome text
+                const outcomeText = outcome === null
+                    ? `<span style="color:#555">Henüz oy yok</span>`
+                    : outcome === false
+                        ? `<span style="color:#fb923c">Bugün kötü</span>`
+                        : `<span style="color:#4ade80">Bugün iyi</span>`;
 
-        // percentage bar — only shown if there are votes
-        let statsHtml = "";
-        if (stats) {
-            statsHtml = `
-                <div style="margin:6px 0 4px;">
-                    <div style="display:flex;justify-content:space-between;
-                                font-size:10px;color:#888;margin-bottom:3px;">
-                        <span style="color:#4ade80">${stats.good_pct}% good</span>
-                        <span style="color:#f87171">${stats.bad_pct}% bad</span>
-                    </div>
-                    <div style="height:4px;border-radius:99px;background:#2e3244;overflow:hidden;">
-                        <div style="height:100%;width:${stats.good_pct}%;
-                                    background:#4ade80;border-radius:99px;
-                                    transition:width 0.4s;"></div>
-                    </div>
-                </div>`;
+                // percentage bar — only shown if there are votes
+                let statsHtml = "";
+                if (stats) {
+                    statsHtml = `
+                        <div style="margin:6px 0 4px;">
+                            <div style="display:flex;justify-content:space-between;
+                                        font-size:10px;color:#888;margin-bottom:3px;">
+                                <span style="color:#4ade80">%${stats.good_pct} iyi</span>
+                                <span style="color:#f87171">%${stats.bad_pct} kötü</span>
+                            </div>
+                            <div style="height:4px;border-radius:99px;background:#2e3244;overflow:hidden;">
+                                <div style="height:100%;width:${stats.good_pct}%;
+                                            background:#4ade80;border-radius:99px;
+                                            transition:width 0.4s;"></div>
+                            </div>
+                        </div>`;
+                }
+
+                // vote buttons
+                let voteArea = "";
+                if (!isOpen) {
+                    voteArea = `<div style="font-size:11px;color:#555">Şu anda oy verilemez</div>`;
+                } else if (alreadyVoted) {
+                    voteArea = `<div style="font-size:11px;color:#555">Oy verildi — yeniden oy vermek için bekleyin</div>`;
+                } else {
+                    voteArea = `
+                        <div style="display:flex;gap:6px;margin-top:6px;">
+                            <button onclick="submitVote('${meal}','good')" style="
+                                flex:1;padding:4px;border:1px solid #2e3244;
+                                border-radius:6px;background:#0f1117;color:#4ade80;
+                                font-size:11px;cursor:pointer;">İyi</button>
+                            <button onclick="submitVote('${meal}','bad')" style="
+                                flex:1;padding:4px;border:1px solid #2e3244;
+                                border-radius:6px;background:#0f1117;color:#f87171;
+                                font-size:11px;cursor:pointer;">Kötü</button>
+                        </div>`;
+                }
+
+                const mealTitle = meal === "lunch" ? "Öğle Yemeği" : "Akşam Yemeği";
+
+                panel.innerHTML += `
+                    <div style="margin-bottom:12px;">
+                        <div style="font-size:12px;font-weight:600;margin-bottom:4px;">${mealTitle}</div>
+                        <div style="font-size:11px;">${outcomeText}</div>
+                        ${statsHtml}
+                        ${voteArea}
+                    </div>`;
+            }
         }
-
-        // vote buttons
-        let voteArea = "";
-        if (!isOpen) {
-            voteArea = `<div style="font-size:11px;color:#555">voting closed</div>`;
-        } else if (alreadyVoted) {
-            voteArea = `<div style="font-size:11px;color:#555">voted — wait 30s to vote again</div>`;
-        } else {
-            voteArea = `
-                <div style="display:flex;gap:6px;margin-top:6px;">
-                    <button onclick="submitVote('${meal}','good')" style="
-                        flex:1;padding:4px;border:1px solid #2e3244;
-                        border-radius:6px;background:#0f1117;color:#4ade80;
-                        font-size:11px;cursor:pointer;">Good</button>
-                    <button onclick="submitVote('${meal}','bad')" style="
-                        flex:1;padding:4px;border:1px solid #2e3244;
-                        border-radius:6px;background:#0f1117;color:#f87171;
-                        font-size:11px;cursor:pointer;">Bad</button>
-                </div>`;
-        }
-
-        panel.innerHTML += `
-            <div style="margin-bottom:12px;">
-                <div style="font-size:12px;font-weight:600;margin-bottom:4px;
-                            text-transform:capitalize">${meal}</div>
-                <div style="font-size:11px;">${outcomeText}</div>
-                ${statsHtml}
-                ${voteArea}
-            </div>`;
-    }
-
-    if (data.food_effect_active) {
-        panel.innerHTML += `
-            <div style="font-size:11px;color:#fb923c;margin-top:4px;
-                        padding-top:8px;border-top:1px solid #2e3244;">
-                baselines adjusted for food
-            </div>`;
-    }
-}
 
         async function submitVote(meal, vote) {
-    try {
-        const res = await fetch(`${FLASK_URL}/poll/vote`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ meal, vote })
-        });
-        if (res.ok) {
-            showToast(`Thanks for voting!`);
-            fetchPoll();
-        } else if (res.status === 429) {
-            showToast("Wait 30 seconds before voting again");
-            fetchPoll();
-        } else {
-            const data = await res.json();
-            showToast(data.error || "Failed to vote");
+            try {
+                const res = await fetch(`${FLASK_URL}/poll/vote`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({ meal, vote })
+                });
+                if (res.ok) {
+                    showToast("Oyunuz alındı");
+                    fetchPoll();
+                } else if (res.status === 429) {
+                    showToast("Yeniden oy vermek için 30 saniye bekleyin");
+                    fetchPoll();
+                } else {
+                    const data = await res.json();
+                    if (data.error === "voted recently") {
+                        showToast("Yakın zamanda oy kullandınız, 5 dakika sonra tekrar deneyin");
+                    } else {
+                        showToast(data.error || "Sunucuya ulaşılamıyor");
+                    }
+                }
+            } catch (err) {
+                showToast("Sunucuya ulaşılamıyor");
+            }
         }
-    } catch (err) {
-        showToast("Can't reach server");
-    }
-}
 
         fetchStatus();
         setInterval(fetchStatus, 30000);
